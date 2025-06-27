@@ -12,20 +12,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RegisterHandeler = exports.Checking = void 0;
+exports.LoginHandeler = exports.RegisterHandeler = exports.Checking = void 0;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma = new client_1.PrismaClient();
-// Test handler
 const Checking = (req, res) => {
     res.status(200).json({ success: true, message: "all good" });
 };
 exports.Checking = Checking;
-// Register handler
 const RegisterHandeler = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { Email, Password } = req.body;
-        // Check if user already exists
         const findUser = yield prisma.user.findUnique({
             where: { Email },
         });
@@ -33,7 +30,6 @@ const RegisterHandeler = (req, res) => __awaiter(void 0, void 0, void 0, functio
             res.status(400).json({ message: "Email already exists" });
             return;
         }
-        // Hash password and create user
         const hashedPassword = yield bcryptjs_1.default.hash(Password, 10);
         yield prisma.user.create({
             data: {
@@ -56,3 +52,38 @@ const RegisterHandeler = (req, res) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.RegisterHandeler = RegisterHandeler;
+const LoginHandeler = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { Email, Password } = req.body;
+        const user = yield prisma.user.findUnique({
+            where: { Email },
+        });
+        if (!user) {
+            res
+                .status(400)
+                .json({ success: false, message: "Invalid email or password" });
+            return;
+        }
+        const isPasswordValid = yield bcryptjs_1.default.compare(Password, user.Password);
+        if (!isPasswordValid) {
+            res
+                .status(400)
+                .json({ success: false, message: "Invalid email or password" });
+            return;
+        }
+        // Optional: Generate token here (e.g. using JWT)
+        res.status(200).json({
+            success: true,
+            message: "Login successful",
+            user: {
+                id: user.Id,
+                email: user.Email,
+            },
+        });
+    }
+    catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+exports.LoginHandeler = LoginHandeler;

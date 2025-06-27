@@ -9,3 +9,4 @@ const User_Controller_1 = require("../Controllers/User.Controller");
 exports.UserRouter = express_1.default.Router();
 exports.UserRouter.get("/test", User_Controller_1.Checking);
 exports.UserRouter.post("/signup", User_Controller_1.RegisterHandeler);
+exports.UserRouter.post("/login", User_Controller_1.LoginHandeler);
