@@ -13,8 +13,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LoginHandeler = exports.RegisterHandeler = exports.Checking = void 0;
+const dotenv_1 = require("dotenv");
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const path_1 = __importDefault(require("path"));
+const zod_1 = require("zod");
+const requiredbody = zod_1.z.object({
+    Email: zod_1.z.string().min(5).max(50).email(),
+    Password: zod_1.z.string().min(5).max(50),
+});
+(0, dotenv_1.config)({
+    path: path_1.default.resolve(__dirname, "../.env"),
+});
 const prisma = new client_1.PrismaClient();
 const Checking = (req, res) => {
     res.status(200).json({ success: true, message: "all good" });
@@ -23,6 +34,14 @@ exports.Checking = Checking;
 const RegisterHandeler = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { Email, Password } = req.body;
+        const parshedbody = requiredbody.safeParse(req.body);
+        if (!parshedbody.success) {
+            res.status(400).json({
+                message: "Invalid credentials ",
+                errors: parshedbody.error.errors,
+            });
+            return;
+        }
         const findUser = yield prisma.user.findUnique({
             where: { Email },
         });
@@ -31,16 +50,21 @@ const RegisterHandeler = (req, res) => __awaiter(void 0, void 0, void 0, functio
             return;
         }
         const hashedPassword = yield bcryptjs_1.default.hash(Password, 10);
-        yield prisma.user.create({
+        const NewUser = yield prisma.user.create({
             data: {
                 Email,
                 Password: hashedPassword,
                 Isverified: false,
             },
         });
+        const NewUserid = NewUser.Id;
+        const payload = {
+            UserId: NewUserid,
+        };
+        const token = jsonwebtoken_1.default.sign(payload, process.env.JWT_SECRET);
+        console.log(NewUserid);
         res.status(201).json({
-            success: true,
-            message: "User created successfully",
+            token
         });
     }
     catch (error) {
@@ -71,14 +95,12 @@ const LoginHandeler = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 .json({ success: false, message: "Invalid email or password" });
             return;
         }
-        // Optional: Generate token here (e.g. using JWT)
+        const payload = {
+            UserId: user.Id,
+        };
+        const token = jsonwebtoken_1.default.sign(payload, process.env.JWT_SECRET);
         res.status(200).json({
-            success: true,
-            message: "Login successful",
-            user: {
-                id: user.Id,
-                email: user.Email,
-            },
+            token
         });
     }
     catch (error) {
